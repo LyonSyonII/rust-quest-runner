@@ -34,5 +34,11 @@ The runner does not allow any request with:
 - `::core`
 
 Additionally, it redeclares the `std` and `core` modules to only allow certain modules to be used.  
-To see all the allowed modules, see the [custom std](project-template/custom-std/).  
+To see all the allowed modules, see the [`custom std`](project-template/custom-std/src/lib.rs).  
 `custom-core` does not export anything.
+
+This should eliminate all file and network access from the executed code.  
+If you find any vulnerabilities, please [open an issue](https://github.com/lyonsyonii/rust-quest-runner/issues).
+
+## License
+[MIT](https://www.tldrlegal.com/license/mit-license)
