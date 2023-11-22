@@ -1,6 +1,9 @@
 .gitignore
-
 .vscode
+
+# Repo
+README.md
+LICENSE
 
 # Nix
 .direnv
