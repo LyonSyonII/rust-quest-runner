@@ -16,6 +16,32 @@ The runner accepts requests in the following format:
 }
 ```
 
+And replies with:
+```json
+{
+    "ok": {
+        "stdout": "Hello, World!",
+        "stderr": "Compiler output"
+
+    }
+}
+```
+If the request went well.
+
+If some error was encountered, it will send one of the following replies:
+- STD,
+- CORE,
+- EXTERN_C,
+- UNSAFE,
+- TEMP_DIR,
+- INPUT_FILE_CREATE,
+- INPUT_FILE_OPEN,
+- INPUT_FILE_WRITE,
+- BUILD,
+- COMPILER: "Compiler error message",
+- TIMEOUT,
+- EXECUTION: "Execution error message",
+
 ### Environment variables
 | Name              | Default | Description                                                                                                 |
 | ----------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
