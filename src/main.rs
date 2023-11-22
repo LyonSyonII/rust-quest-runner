@@ -135,7 +135,7 @@ async fn main() -> Result<(), &'static str> {
     warp::serve(default.or(filter))
         .run(([0, 0, 0, 0], port))
         .await;
-    
+
     Ok(())
 }
 

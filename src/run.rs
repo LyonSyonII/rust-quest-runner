@@ -101,9 +101,10 @@ pub async fn run(
     let Ok(mut input_file) = tokio::fs::OpenOptions::new()
         .append(true)
         .open(input_file)
-        .await else {
-            return Reply::INPUT_FILE_OPEN;
-        };
+        .await
+    else {
+        return Reply::INPUT_FILE_OPEN;
+    };
     let Ok(_) = input_file.write_all(code.as_bytes()).await else {
         return Reply::INPUT_FILE_WRITE;
     };
