@@ -105,9 +105,9 @@ pub async fn run(
     else {
         return Reply::INPUT_FILE_OPEN;
     };
-    let Ok(_) = input_file.write_all(code.as_bytes()).await else {
+    if input_file.write_all(code.as_bytes()).await.is_err() {
         return Reply::INPUT_FILE_WRITE;
-    };
+    }
     drop(input_file);
 
     let Ok(compile) = tokio::process::Command::new("cargo")
