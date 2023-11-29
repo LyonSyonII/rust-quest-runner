@@ -22,7 +22,6 @@ And replies with:
     "ok": {
         "stdout": "Hello, World!",
         "stderr": "Compiler output"
-
     }
 }
 ```

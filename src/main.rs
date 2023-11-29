@@ -18,6 +18,7 @@ struct Config {
     semaphore_wait: u16,
     kill_timeout: u16,
     origins_whitelist: Vec<String>,
+    content_length_limit: u16,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -28,6 +29,7 @@ impl Default for Config {
             semaphore_wait: 500,
             kill_timeout: 500,
             origins_whitelist: Vec::new(),
+            content_length_limit: 1024 * 4,
         }
     }
 }
@@ -78,6 +80,7 @@ async fn main() -> Result<(), &'static str> {
         semaphore_wait,
         kill_timeout,
         origins_whitelist,
+        content_length_limit,
     } = config;
 
     if authorization.is_empty() {
@@ -100,7 +103,9 @@ async fn main() -> Result<(), &'static str> {
         warp::cors().allow_any_origin()
     } else {
         warp::cors().allow_origins(origins_whitelist.iter().map(String::as_str))
-    };
+    }
+    .allow_method(warp::http::Method::POST)
+    .allow_headers(["content-type"]);
 
     let route = warp::post().and(warp::path("evaluate.json"));
     let auth = warp::header::header("authorization")
@@ -117,7 +122,7 @@ async fn main() -> Result<(), &'static str> {
                 .ok_or(Error::not_authorized())
         });
 
-    let process_input = warp::body::content_length_limit(512)
+    let process_input = warp::body::content_length_limit(content_length_limit as u64)
         .and(warp::body::json())
         .or_else(|_| async move { Err(Error::body_not_correct()) });
     let run_input = move |i: Input| run(i.code, semaphore, semaphore_wait, kill_timeout);
