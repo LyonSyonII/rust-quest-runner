@@ -1,15 +1,10 @@
-use serde::{Deserialize, Serialize};
-use warp::{
-    http,
-    reject::{Reject, Rejection},
-    Filter,
-};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
-mod run;
-use crate::run::run;
+// mod run;
+// use crate::run::run;
 
-#[derive(Deserialize, Debug)]
-#[serde(default)]
+#[derive(Debug, rocket::serde::Deserialize)]
+#[serde(crate = "rocket::serde", default)]
 struct Config {
     #[serde(alias = "auth")]
     authorization: String,
@@ -34,24 +29,17 @@ impl Default for Config {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(rocket::serde::Deserialize)]
+#[serde(crate = "rocket::serde")]
 struct Input {
     code: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, rocket::serde::Deserialize)]
+#[serde(crate = "rocket::serde")]
 enum Error {
     NotAuthorized,
     BodyNotCorrect,
-}
-impl Reject for Error {}
-impl Error {
-    fn not_authorized() -> Rejection {
-        warp::reject::custom(Self::NotAuthorized)
-    }
-    fn body_not_correct() -> Rejection {
-        warp::reject::custom(Self::BodyNotCorrect)
-    }
 }
 
 /*
@@ -64,9 +52,9 @@ curl --request POST \
 }'
 */
 
-#[tokio::main]
-async fn main() -> Result<(), &'static str> {
-    console_subscriber::init();
+#[rocket::launch]
+async fn launch() -> _ {
+    // console_subscriber::init();
 
     let config = match envy::from_env() {
         Ok(config) => config,
@@ -96,7 +84,8 @@ async fn main() -> Result<(), &'static str> {
 
     // Necessary for passing it into `auth`
     let authorization: &'static str = authorization.leak();
-    let semaphore: &'static tokio::sync::Semaphore = Box::leak(Box::new(
+
+    /*     let semaphore: &'static tokio::sync::Semaphore = Box::leak(Box::new(
         tokio::sync::Semaphore::new(semaphore_permits as usize),
     ));
     let cors = if origins_whitelist.is_empty() {
@@ -132,26 +121,23 @@ async fn main() -> Result<(), &'static str> {
         .and(process_input)
         .and_then(run_input)
         .recover(handle_rejection)
-        .with(cors);
-
-    let default = warp::path::end().map(|| warp::reply::html("Waiting requests!"));
+        .with(cors); */
 
     println!("Listening on http://0.0.0.0:{port}/evaluate.json");
-    warp::serve(default.or(filter))
-        .run(([0, 0, 0, 0], port))
-        .await;
 
-    Ok(())
+    let figment = rocket::Config::figment()
+        .merge(("address", "0.0.0.0"))
+        .merge(rocket::figment::providers::Env::prefixed("APP_").global());
+    rocket::custom(figment)
+        .mount("/", rocket::routes![default_route, evaluate])
 }
 
-async fn handle_rejection(
-    err: Rejection,
-) -> std::result::Result<impl warp::Reply, warp::Rejection> {
-    let code = match err.find() {
-        Some(Error::NotAuthorized) => http::StatusCode::UNAUTHORIZED,
-        Some(Error::BodyNotCorrect) => http::StatusCode::UNPROCESSABLE_ENTITY,
-        None => http::StatusCode::BAD_REQUEST,
-    };
+#[rocket::get("/evaluate.json")]
+fn default_route() -> &'static str {
+    "Waiting requests!"
+}
 
-    Ok(warp::reply::with_status(warp::reply(), code))
+#[rocket::post("/evaluate.json", data = "<data>")]
+fn evaluate(data: Json<Input>) -> String {
+    data.0.code
 }
