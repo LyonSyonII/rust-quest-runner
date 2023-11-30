@@ -1,10 +1,12 @@
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::serde;
+use run::run;
+use serde::json::Json;
 
-// mod run;
+mod run;
 // use crate::run::run;
 
-#[derive(Debug, rocket::serde::Deserialize)]
-#[serde(crate = "rocket::serde", default)]
+#[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde", default)]
 struct Config {
     #[serde(alias = "auth")]
     authorization: String,
@@ -29,28 +31,39 @@ impl Default for Config {
     }
 }
 
-#[derive(rocket::serde::Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[derive(serde::Deserialize)]
+#[serde(crate = "serde")]
 struct Input {
     code: String,
 }
 
-#[derive(Debug, rocket::serde::Deserialize)]
+#[derive(serde::Serialize)]
+#[serde(crate = "serde")]
+struct Output {
+    stdout: String,
+    stderr: String,
+}
+
+#[derive(serde::Serialize)]
 #[serde(crate = "rocket::serde")]
-enum Error {
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Error {
+    Std,
+    Core,
+    ExternC,
+    Unsafe,
+    TempDir,
+    InputFileCreate,
+    InputFileOpen,
+    InputFileWrite,
+    Build,
+    Compiler(String),
+    Timeout,
+    Execution(String),
+
     NotAuthorized,
     BodyNotCorrect,
 }
-
-/*
-curl --request POST \
-  --url http://localhost:3030/evaluate.json \
-  --header 'Content-Type: application/json' \
-  --header 'authorization: potato' \
-  --data '{
-    "code": "fn main() { println!(\"Hello, World!\") } "
-}'
-*/
 
 #[rocket::launch]
 async fn launch() -> _ {
@@ -83,7 +96,7 @@ async fn launch() -> _ {
     }
 
     // Necessary for passing it into `auth`
-    let authorization: &'static str = authorization.leak();
+//     let authorization: &'static str = authorization.leak();
 
     /*     let semaphore: &'static tokio::sync::Semaphore = Box::leak(Box::new(
         tokio::sync::Semaphore::new(semaphore_permits as usize),
@@ -122,8 +135,8 @@ async fn launch() -> _ {
         .and_then(run_input)
         .recover(handle_rejection)
         .with(cors); */
-
-    println!("Listening on http://0.0.0.0:{port}/evaluate.json");
+    
+//     println!("Listening on http://0.0.0.0:{port}/evaluate.json");
 
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
@@ -137,7 +150,7 @@ fn default_route() -> &'static str {
     "Waiting requests!"
 }
 
-#[rocket::post("/evaluate.json", data = "<data>")]
-fn evaluate(data: Json<Input>) -> String {
-    data.0.code
+#[rocket::post("/evaluate.json", format = "json", data = "<data>")]
+async fn evaluate(data: Json<Input>) -> Json<Result<Output, Error>> {
+    Json(run(data.0.code).await)
 }
