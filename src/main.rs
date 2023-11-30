@@ -69,80 +69,36 @@ pub enum Error {
 async fn launch() -> _ {
     // console_subscriber::init();
 
-    let config = match envy::from_env() {
+    let config: Config = match envy::from_env() {
         Ok(config) => config,
         Err(e) => panic!("{e}"),
     };
     println!("{config:#?}");
-    let Config {
-        authorization,
-        port,
-        semaphore_permits,
-        semaphore_wait,
-        kill_timeout,
-        origins_whitelist,
-        content_length_limit,
-    } = config;
 
-    if authorization.is_empty() {
+    if config.authorization.is_empty() {
         println!(
             "Warning: AUTH environment variable is not set, anyone will be able to send requests!"
         );
     }
-    if origins_whitelist.is_empty() {
+    if config.origins_whitelist.is_empty() {
         println!(
             "Warning: ORIGINS_WHITELIST environment variable is not set, anyone will be able to send requests!"
         );
     }
 
-    // Necessary for passing it into `auth`
-//     let authorization: &'static str = authorization.leak();
-
-    /*     let semaphore: &'static tokio::sync::Semaphore = Box::leak(Box::new(
-        tokio::sync::Semaphore::new(semaphore_permits as usize),
-    ));
-    let cors = if origins_whitelist.is_empty() {
-        warp::cors().allow_any_origin()
-    } else {
-        warp::cors().allow_origins(origins_whitelist.iter().map(String::as_str))
-    }
-    .allow_method(warp::http::Method::POST)
-    .allow_headers(["content-type"]);
-
-    let route = warp::post().and(warp::path("evaluate.json"));
-    let auth = warp::header::header("authorization")
-        .and_then(move |auth: String| async move {
-            (auth == authorization)
-                .then_some(())
-                .ok_or(Error::not_authorized())
-        })
-        .untuple_one()
-        .or_else(move |_| async move {
-            authorization
-                .is_empty()
-                .then_some(())
-                .ok_or(Error::not_authorized())
-        });
-
-    let process_input = warp::body::content_length_limit(content_length_limit as u64)
-        .and(warp::body::json())
-        .or_else(|_| async move { Err(Error::body_not_correct()) });
-    let run_input = move |i: Input| run(i.code, semaphore, semaphore_wait, kill_timeout);
-
-    let filter = route
-        .and(auth)
-        .and(process_input)
-        .and_then(run_input)
-        .recover(handle_rejection)
-        .with(cors); */
-    
-//     println!("Listening on http://0.0.0.0:{port}/evaluate.json");
-
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
+        .merge((
+            "limits",
+            rocket::figment::map!("json" => config.content_length_limit),
+        ))
         .merge(rocket::figment::providers::Env::prefixed("APP_").global());
     rocket::custom(figment)
         .mount("/", rocket::routes![default_route, evaluate])
+        .manage(tokio::sync::Semaphore::new(
+            config.semaphore_permits as usize,
+        ))
+        .manage(config)
 }
 
 #[rocket::get("/evaluate.json")]
@@ -151,6 +107,10 @@ fn default_route() -> &'static str {
 }
 
 #[rocket::post("/evaluate.json", format = "json", data = "<data>")]
-async fn evaluate(data: Json<Input>) -> Json<Result<Output, Error>> {
-    Json(run(data.0.code).await)
+async fn evaluate(
+    data: Json<Input>,
+    semaphore: &rocket::State<tokio::sync::Semaphore>,
+    config: &rocket::State<Config>,
+) -> Json<Result<Output, Error>> {
+    Json(run(data.0.code, semaphore, config).await)
 }

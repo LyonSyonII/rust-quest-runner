@@ -1,22 +1,25 @@
 use rocket::tokio;
 use tokio::io::AsyncWriteExt;
 
+use crate::Config;
 use crate::Error;
 use crate::Output;
 
 pub async fn run(
     code: impl AsRef<str>,
+    semaphore: &tokio::sync::Semaphore,
+    config: &Config,
 ) -> Result<Output, Error> {
     let code = code.as_ref();
 
-/*     let _semaphore = loop {
+    let _semaphore = loop {
         match semaphore.try_acquire() {
             Ok(ok) => break ok,
             Err(_) => {
-                tokio::time::sleep(std::time::Duration::from_millis(semaphore_wait as u64)).await
+                tokio::time::sleep(std::time::Duration::from_millis(config.semaphore_wait as u64)).await
             }
         }
-    }; */
+    };
 
     if code.contains("::std") {
         return Err(Error::Std);
@@ -56,7 +59,7 @@ pub async fn run(
         return Err(Error::Build);
     };
     if !compile.status.success() {
-        return Err(Error::Compiler(String::from_utf8(compile.stderr).unwrap()))
+        return Err(Error::Compiler(String::from_utf8(compile.stderr).unwrap()));
     }
 
     let run = tokio::process::Command::new("cargo")
@@ -64,10 +67,18 @@ pub async fn run(
         .kill_on_drop(true)
         .current_dir(&scratch)
         .output();
-    
+
     // TODO: Panic does not trigger Err
-    match tokio::time::timeout(std::time::Duration::from_millis(500/*kill_timeout*/ as u64), run).await {
-        Ok(Ok(result)) => Ok(Output { stdout: String::from_utf8(result.stdout).unwrap(), stderr: String::from_utf8(result.stderr).unwrap() }),
+    match tokio::time::timeout(
+        std::time::Duration::from_millis(config.kill_timeout as u64),
+        run,
+    )
+    .await
+    {
+        Ok(Ok(result)) => Ok(Output {
+            stdout: String::from_utf8(result.stdout).unwrap(),
+            stderr: String::from_utf8(result.stderr).unwrap(),
+        }),
         Ok(Err(e)) => Err(Error::Execution(e.to_string())),
         Err(_) => Err(Error::Timeout),
     }
