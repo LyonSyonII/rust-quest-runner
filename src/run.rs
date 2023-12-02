@@ -15,9 +15,7 @@ pub async fn run(
     let _semaphore = loop {
         match semaphore.try_acquire() {
             Ok(ok) => break ok,
-            Err(_) => {
-                tokio::time::sleep(std::time::Duration::from_millis(config.semaphore_wait as u64)).await
-            }
+            Err(_) => sleep_ms(5000).await,
         }
     };
 
@@ -96,4 +94,8 @@ async fn create_project_template(
         .wait()
         .await?;
     Ok(parent.as_ref().join("src/main.rs"))
+}
+
+async fn sleep_ms(ms: u64) {
+    tokio::time::sleep(std::time::Duration::from_millis(ms)).await
 }

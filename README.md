@@ -42,14 +42,15 @@ If some error was encountered, it will send one of the following replies:
 - EXECUTION: "Execution error message",
 
 ### Environment variables
-| Name              | Default | Description                                                                                                 |
-| ----------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
-| PORT              | 3030    | Port to listen on.                                                                                          |
-| AUTH              | ""      | Customizable authorization token, sets the "Authorization" header.                                          |
-| ORIGINS_WHITELIST | ""      | Comma separated list of allowed origins, sets `cors`.                                                       |
-| SEMAPHORE_PERMITS | 5       | How many requests to allow at the same time, to avoid overload.                                             |
-| SEMAPHORE_WAIT    | 500ms   | Time in milliseconds that a request will wait when the number of requests is larger than SEMAPHORE_PERMITS. |
-| KILL_TIMEOUT      | 500ms   | Time in milliseconds that a request will be killed if it takes longer than.                                 |
+| Name                        | Default | Description                                                                                                 |
+| --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| RUNNER_PORT                 | 3030    | Port to listen on.                                                                                          |
+| RUNNER_AUTH                 | ""      | Customizable authorization token, sets the "Authorization" header.                                          |
+| RUNNER_ORIGINS_WHITELIST    | ""      | Comma separated list of allowed origins, sets `cors`.                                                       |
+| RUNNER_SEMAPHORE_PERMITS    | 5       | How many requests to allow at the same time, to avoid overload.                                             |
+| RUNNER_SEMAPHORE_WAIT       | 500ms   | Time in milliseconds that a request will wait when the number of requests is larger than SEMAPHORE_PERMITS. |
+| RUNNER_KILL_TIMEOUT         | 500ms   | Time in milliseconds that a request will be killed if it takes longer than.                                 |
+| RUNNER_CONTENT_LENGTH_LIMIT | 4KB     | Limit on the length of the code requests.                                                                   |
 
 ## Safety
 The runner does not allow any request with:
@@ -60,7 +61,7 @@ The runner does not allow any request with:
 
 Additionally, it redeclares the `std` and `core` modules to only allow certain modules to be used.  
 To see all the allowed modules, see the [`custom std`](project-template/custom-std/src/lib.rs).  
-`custom-core` does not export anything.
+`custom-core` exports nothing.
 
 This should eliminate all file and network access from the executed code.  
 If you find any vulnerabilities, please [open an issue](https://github.com/lyonsyonii/rust-quest-runner/issues).

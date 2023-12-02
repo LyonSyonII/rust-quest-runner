@@ -4,7 +4,6 @@ function request() {
         curl -i --request POST \
                 --url $1/evaluate.json \
                 --header 'Content-Type: application/json' \
-                --header 'authorization: macarena' \
                 --data "{
                     \"code\": \"fn main() { println!(\\\"Hello, $i!\\\") } \"
                 }" &

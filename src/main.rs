@@ -10,7 +10,6 @@ mod run;
 struct Config {
     #[serde(alias = "auth")]
     authorization: String,
-    port: u16,
     semaphore_permits: u8,
     semaphore_wait: u16,
     kill_timeout: u16,
@@ -21,7 +20,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             authorization: String::new(),
-            port: 3030,
             semaphore_permits: 5,
             semaphore_wait: 500,
             kill_timeout: 500,
@@ -69,10 +67,10 @@ pub enum Error {
 async fn launch() -> _ {
     // console_subscriber::init();
 
-    let config: Config = match envy::from_env() {
-        Ok(config) => config,
-        Err(e) => panic!("{e}"),
-    };
+    let config: Config = rocket::figment::Figment::new()
+        .merge(rocket::figment::providers::Env::prefixed("RUNNER_"))
+        .extract()
+        .unwrap();
     println!("{config:#?}");
 
     if config.authorization.is_empty() {
@@ -86,14 +84,14 @@ async fn launch() -> _ {
         );
     }
 
-    let figment = rocket::Config::figment()
-        .merge(("address", "0.0.0.0"))
+    let rocket_config = rocket::Config::figment()
         .merge((
             "limits",
             rocket::figment::map!("json" => config.content_length_limit),
         ))
-        .merge(rocket::figment::providers::Env::prefixed("APP_").global());
-    rocket::custom(figment)
+        .merge(rocket::figment::providers::Env::prefixed("RUNNER_"));
+
+    rocket::custom(rocket_config)
         .mount("/", rocket::routes![default_route, evaluate])
         .manage(tokio::sync::Semaphore::new(
             config.semaphore_permits as usize,
@@ -112,5 +110,5 @@ async fn evaluate(
     semaphore: &rocket::State<tokio::sync::Semaphore>,
     config: &rocket::State<Config>,
 ) -> Json<Result<Output, Error>> {
-    Json(run(data.0.code, semaphore, config).await)
+    Json(run(&data.code, semaphore, config).await)
 }

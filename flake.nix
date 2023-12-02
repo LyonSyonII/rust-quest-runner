@@ -20,6 +20,7 @@
           mold
           cargo-watch
           tokio-console
+          flyctl   # fly.io docker platform
         ];
         shellHook = ''
           rustup toolchain install stable
